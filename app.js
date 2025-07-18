@@ -11,6 +11,9 @@ app.use('/users', userRoutes);
 
 //
 
+const newsRoutes = require('./routes/news');
+app.use('/news', newsRoutes)
+
 app.get('/', (req, res) => {
     res.send('NEWS AGGREGATOR running');
 });

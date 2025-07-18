@@ -3,21 +3,57 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const router = express.Router();
 const authenticationToken = require('../middlewares/auth');
+const axios = require('axios');
 
-let users = [];
+const users = require('./users').users; // Assuming users is an array of user objects
 
-//signup
+ const NEWS_API_KEY = process.env.NEWS_API_KEY;
 
-router.post('/signup', async (req, res) => {
-    const {name, email, password, preferences } = req.body;
-    if( !name || !email || !password) {
-        return res.status(400).json({ error: 'All fields are required' });
-    }
+// //router to fetch news articles
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    users.push({name, email, password: hashedPassword, preferences});
-    res.status(200).json({ message: 'User created successfully'});
-});
+// router.get('/', authenticationToken, async(req,res)=> {
+//     try {
+//         const user = users.find(u => u.email === req.user.email);
+//         if (!user || !user.preferences) {
+//             return res.status(400).json({ error: 'preferences not set'});
+//         }
+
+//         const { categories = [] , language = [] } = user.preferences;
+
+//         let allArticles = [];
+
+//         for (const category of categories) {
+//             const response = await axios.get(`https://newsapi.org/v2/top-headlines?category=${category}&language=${language[0] || 'en'}&apiKey=${NEWS_API_KEY}`,
+//                 {
+//                     params: {
+//                         category,
+//                         language: language[0] || 'en',
+//                         apiKey: NEWS_API_KEY
+//                     }
+//                 }
+//             );
+//             allArticles = allArticles.concat(response.data.articles);
+//         }
+
+//         res.json({ articles: allArticles });
+//     } catch (error) {
+//         console.error('Error fetching news articles:', error.message);
+//         res.status(500).json({ error: 'failed to fetch news articles'});
+//     }
+// });
+
+// //signup
+
+// router.post('/signup', async (req, res) => {
+//     const {name, email, password, preferences } = req.body;
+//     if( !name || !email || !password) {
+//         return res.status(400).json({ error: 'All fields are required' });
+//     }
+
+//     const hashedPassword = await bcrypt.hash(password, 10);
+//     users.push({name, email, password: hashedPassword, preferences});
+//     res.status(200).json({ message: 'User created successfully'});
+// });
 
 
 //login 
@@ -59,6 +95,8 @@ router.put('/preferences', authenticationToken, (req,res) => {
     user.preferences = preferences;
     res.json({message: 'preferences updated successfully', preferences});
 });
+
+//
 
 module.exports = router;
 
