@@ -5,7 +5,11 @@ const router = express.Router();
 const authenticationToken = require('../middlewares/auth');
 const axios = require('axios');
 
-const users = require('./users').users; // Assuming users is an array of user objects
+//const users = require('./users').users; // Assuming users is an array of user objects
+
+//array users
+const users = [];
+module.exports.users = users; // Exporting users array for use in other files
 
  const NEWS_API_KEY = process.env.NEWS_API_KEY;
 
@@ -44,19 +48,19 @@ const users = require('./users').users; // Assuming users is an array of user ob
 
 // //signup
 
-// router.post('/signup', async (req, res) => {
-//     const {name, email, password, preferences } = req.body;
-//     if( !name || !email || !password) {
-//         return res.status(400).json({ error: 'All fields are required' });
-//     }
+router.post('/signup', async (req, res) => {
+    const {name, email, password, preferences } = req.body;
+    if( !name || !email || !password) {
+        return res.status(400).json({ error: 'All fields are required' });
+    }
 
-//     const hashedPassword = await bcrypt.hash(password, 10);
-//     users.push({name, email, password: hashedPassword, preferences});
-//     res.status(200).json({ message: 'User created successfully'});
-// });
+    const hashedPassword = await bcrypt.hash(password, 10);
+    users.push({name, email, password: hashedPassword, preferences});
+    res.status(200).json({ message: 'User created successfully'});
+});
 
 
-//login 
+//login
 
 router.post('/login', async (req,res) => {
     const {email, password} = req.body;
@@ -70,7 +74,7 @@ router.post('/login', async (req,res) => {
         return res.status(401).json({ error : 'Wrong password or try using registering first' });
     }
 
-    const token = jwt.sign({email: user.email}, process.env.JWT_SECRET || 'Akshat@123', {expiresIn: '1h'}); //yeh line error
+    const token = jwt.sign({email: user.email}, process.env.SECRET_KEY || 'Akshat@123', {expiresIn: '1h'}); //yeh line error
     res.status(200).json({token});
 });
 
@@ -88,9 +92,9 @@ router.put('/preferences', authenticationToken, (req,res) => {
     if (!user) return res.status(404).json({error: 'User not found'});
 
     const {preferences} = req.body;
-    if (!Array.isArray(preferences)) {
-        return res.status(400).json({ error: 'preferences must be an array'});
-    }
+    if (typeof preferences !== 'object' || !Array.isArray(preferences.categories) || !Array.isArray(preferences.language)) {
+    return res.status(400).json({ error: 'Preferences must include categories and language arrays' });
+}
 
     user.preferences = preferences;
     res.json({message: 'preferences updated successfully', preferences});
