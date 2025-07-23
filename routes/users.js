@@ -8,8 +8,10 @@ const axios = require('axios');
 //const users = require('./users').users; // Assuming users is an array of user objects
 
 //array users
-const users = [];
-module.exports.users = users; // Exporting users array for use in other files
+//const users = [];
+const users = require('./data'); //  data.js yhav se le lega
+
+//module.exports.users = users; // Exporting users array for use in other files
 
  const NEWS_API_KEY = process.env.NEWS_API_KEY;
 
@@ -48,16 +50,43 @@ module.exports.users = users; // Exporting users array for use in other files
 
 // //signup
 
+// router.post('/signup', async (req, res) => {
+//     const {name, email, password, preferences } = req.body;
+//     if( !name || !email || !password) {
+//         return res.status(400).json({ error: 'All fields are required' });
+//     }
+
+//     const hashedPassword = await bcrypt.hash(password, 10);
+//     users.push({name, email, password: hashedPassword, preferences});
+//     res.status(200).json({ message: 'User created successfully'});
+// });
+
+//signup 
 router.post('/signup', async (req, res) => {
-    const {name, email, password, preferences } = req.body;
-    if( !name || !email || !password) {
+    const { name, email, password, preferences } = req.body;
+
+    // Check for missing fields
+    if (!name || !email || !password) {
         return res.status(400).json({ error: 'All fields are required' });
     }
 
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        return res.status(400).json({ error: 'Invalid email format' });
+    }
+
+    // Validate password length
+    if (password.length < 6) {
+        return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+    }
+
+    // Hash and store user
     const hashedPassword = await bcrypt.hash(password, 10);
-    users.push({name, email, password: hashedPassword, preferences});
-    res.status(200).json({ message: 'User created successfully'});
+    users.push({ name, email, password: hashedPassword, preferences });
+    res.status(200).json({ message: 'User created successfully' });
 });
+
 
 
 //login
