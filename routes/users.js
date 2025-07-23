@@ -93,8 +93,6 @@ router.post('/signup', async (req, res) => {
     res.status(200).json({ message: 'User created successfully' });
 });
 
-
-
 //login
 
 router.post('/login', async (req,res) => {
@@ -118,24 +116,36 @@ router.get('/preferences', authenticationToken, (req, res)=> {
     const user = users.find(u => u.email === req.user.email);
     if (!user) return res.status(404).json({error: "User not found"});
 
-    res.json({preferences: user.preferences || []});
+    res.json({ preferences: user.preferences });
 })
 
 // /users/preference (auth required) -- PUT
-router.put('/preferences', authenticationToken, (req,res) => {
-    const user = users.find(u => u.email === req.user.email);
-    if (!user) return res.status(404).json({error: 'User not found'});
+// router.put('/preferences', authenticationToken, (req, res) => {
+//     const user = users.find(u => u.email === req.user.email);
+//     if (!user) return res.status(404).json({ error: "User nott found"});
 
-    const {preferences} = req.body;
-    if (typeof preferences !== 'object' || !Array.isArray(preferences.categories) || !Array.isArray(preferences.language)) {
-    return res.status(400).json({ error: 'Preferences must include categories and language arrays' });
-}
+//     const { categories, language } = req.body;
 
-    user.preferences = preferences;
-    res.json({message: 'preferences updated successfully', preferences});
+//     //validating input 
+//     if(!Array.isArray(categories) || !Array.isArray (language)) {
+//         return res.status(400).json({ error: 'Invalid preferences format' });
+//     }
+//     user.preferences = { categories, language };
+//     res.status(200).json({ message: 'preferences updated successfully'});
+// });
+// Test cases fail
+
+router.put('/preferences', authenticationToken, (req, res) => {
+  const { categories, language } = req.body;
+  const user = users.find(u => u.email === req.user.email);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+
+  user.preferences.categories = categories || [];
+  user.preferences.language = language || [];
+
+  res.json({ preferences: user.preferences });
 });
 
-//
 
 module.exports = router;
 

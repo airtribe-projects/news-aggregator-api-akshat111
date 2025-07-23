@@ -48,7 +48,7 @@ router.get('/', authenticationToken, async (req, res) => {
       }
     }
 
-    return res.json({ articles: allArticles });
+    return res.json({ news: allArticles });
 
   } catch (error) {
     console.error('Error fetching news:', error.message);
