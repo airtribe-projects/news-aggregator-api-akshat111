@@ -63,52 +63,80 @@ const users = require('./data'); //  data.js yhav se le lega
 
 //signup 
 router.post('/signup', async (req, res) => {
-    const { name, email, password, preferences } = req.body;
+    try {
+        const { name, email, password, preferences } = req.body;
 
-    // Check for missing fields
-    if (!name || !email || !password) {
-        return res.status(400).json({ error: 'All fields are required' });
+        // Check for missing fields
+        if (!name || !email || !password) {
+            return res.status(400).json({ error: 'All fields are required' });
+        }
+
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            return res.status(400).json({ error: 'Invalid email format' });
+        }
+
+        // Check for duplicate email
+        const existingUser = users.find(u => u.email === email);
+        if (existingUser) {
+            return res.status(409).json({ error: 'User with this email already exists' });
+        }
+
+        // Validate password length
+        if (password.length < 6) {
+            return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+        }
+
+        // Hash and store user
+        const hashedPassword = await bcrypt.hash(password, 10);
+        users.push({
+            name,
+            email,
+            password: hashedPassword,
+            preferences: preferences || { categories: [], language: [] },
+            readArticles: [] // Initialize readArticles array
+        });
+        res.status(200).json({ message: 'User created successfully' });
+    } catch (error) {
+        console.error('Signup error:', error.message);
+        res.status(500).json({ error: 'Internal server error during signup' });
     }
-
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-        return res.status(400).json({ error: 'Invalid email format' });
-    }
-
-    // Validate password length
-    if (password.length < 6) {
-        return res.status(400).json({ error: 'Password must be at least 6 characters long' });
-    }
-
-    // Hash and store user
-    const hashedPassword = await bcrypt.hash(password, 10);
-    users.push({
-        name,
-        email,
-        password: hashedPassword,
-        preferences: preferences || { categories: [], language: [] },
-        readArticles: [] // Initialize readArticles array
-    });
-    res.status(200).json({ message: 'User created successfully' });
 });
 
 //login
 
 router.post('/login', async (req,res) => {
-    const {email, password} = req.body;
-    const user = users.find(u => u.email === email);
-    if( !user) {
-        return res.status(401).json({ error: 'Invalid email or try using registering first'})
-    }
+    try {
+        const {email, password} = req.body;
 
-    const valid = await bcrypt.compare(password, user.password);
-    if(!valid) {
-        return res.status(401).json({ error : 'Wrong password or try using registering first' });
-    }
+        // Validate input
+        if (!email || !password) {
+            return res.status(400).json({ error: 'Email and password are required' });
+        }
 
-    const token = jwt.sign({email: user.email}, process.env.SECRET_KEY || 'Akshat@123', {expiresIn: '1h'}); //yeh line error
-    res.status(200).json({token});
+        const user = users.find(u => u.email === email);
+        if( !user) {
+            return res.status(401).json({ error: 'Invalid email or password'})
+        }
+
+        const valid = await bcrypt.compare(password, user.password);
+        if(!valid) {
+            return res.status(401).json({ error : 'Invalid email or password' });
+        }
+
+        // Check if SECRET_KEY exists
+        if (!process.env.SECRET_KEY) {
+            console.error('CRITICAL: SECRET_KEY not found in environment variables');
+            return res.status(500).json({ error: 'Server configuration error' });
+        }
+
+        const token = jwt.sign({email: user.email}, process.env.SECRET_KEY, {expiresIn: '1h'});
+        res.status(200).json({token});
+    } catch (error) {
+        console.error('Login error:', error.message);
+        res.status(500).json({ error: 'Internal server error during login' });
+    }
 });
 
 // /users/preference (auth required) -- GET 
@@ -136,14 +164,28 @@ router.get('/preferences', authenticationToken, (req, res)=> {
 // Test cases fail
 
 router.put('/preferences', authenticationToken, (req, res) => {
-  const { categories, language } = req.body;
-  const user = users.find(u => u.email === req.user.email);
-  if (!user) return res.status(404).json({ error: 'User not found' });
+  try {
+    const { categories, language } = req.body;
+    
+    // Validate input types
+    if (categories !== undefined && !Array.isArray(categories)) {
+      return res.status(400).json({ error: 'Categories must be an array' });
+    }
+    if (language !== undefined && !Array.isArray(language)) {
+      return res.status(400).json({ error: 'Language must be an array' });
+    }
 
-  user.preferences.categories = categories || [];
-  user.preferences.language = language || [];
+    const user = users.find(u => u.email === req.user.email);
+    if (!user) return res.status(404).json({ error: 'User not found' });
 
-  res.json({ preferences: user.preferences });
+    user.preferences.categories = categories || [];
+    user.preferences.language = language || [];
+
+    res.json({ preferences: user.preferences });
+  } catch (error) {
+    console.error('Update preferences error:', error.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 

@@ -7,14 +7,17 @@ const mockUser = {
     name: 'Clark Kent',
     email: 'clark@superman.com',
     password: 'Krypt()n8',
-    preferences:['movies', 'comics']
+    preferences: {
+        categories: ['technology', 'business'],
+        language: ['en']
+    }
 };
 
 let token = '';
 
 // Auth tests
 
-tap.test('POST /users/signup', async (t) => { 
+tap.test('POST /users/signup', async (t) => {
     const response = await server.post('/users/signup').send(mockUser);
     t.equal(response.status, 200);
     t.end();
@@ -29,7 +32,7 @@ tap.test('POST /users/signup with missing email', async (t) => {
     t.end();
 });
 
-tap.test('POST /users/login', async (t) => { 
+tap.test('POST /users/login', async (t) => {
     const response = await server.post('/users/login').send({
         email: mockUser.email,
         password: mockUser.password
@@ -67,7 +70,8 @@ tap.test('GET /users/preferences without token', async (t) => {
 
 tap.test('PUT /users/preferences', async (t) => {
     const response = await server.put('/users/preferences').set('Authorization', `Bearer ${token}`).send({
-        preferences: ['movies', 'comics']
+        categories: ['sports', 'entertainment'],
+        language: ['en']
     });
     t.equal(response.status, 200);
 });
@@ -75,7 +79,8 @@ tap.test('PUT /users/preferences', async (t) => {
 tap.test('Check PUT /users/preferences', async (t) => {
     const response = await server.get('/users/preferences').set('Authorization', `Bearer ${token}`);
     t.equal(response.status, 200);
-    t.same(response.body.preferences, ['movies', 'comics']);
+    t.same(response.body.preferences.categories, ['sports', 'entertainment']);
+    t.same(response.body.preferences.language, ['en']);
     t.end();
 });
 

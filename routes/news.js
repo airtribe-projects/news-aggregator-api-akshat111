@@ -13,29 +13,35 @@ const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 router.get('/', authenticationToken, async (req, res) => {
   try {
     const user = users.find(u => u.email === req.user.email);
-    
+
     if (!user || !user.preferences) {
       return res.status(400).json({ error: 'Preferences not set' });
     }
 
     const { categories = [], language = [] } = user.preferences;
-    let allArticles = [];
 
-    for (const category of categories) {
+    if (categories.length === 0) {
+      return res.json({ news: [] });
+    }
+
+    const now = Date.now();
+
+    // Parallel API calls for better performance
+    const articlePromises = categories.map(async (category) => {
       const cacheKey = `${user.email}|${category}|${language[0] || 'en'}`;
       const cachedData = cache[cacheKey];
-      const now = Date.now();
 
       if (cachedData && (now - cachedData.timestamp < CACHE_TTL)) {
         console.log('Using cached data for:', cacheKey);
-        allArticles = allArticles.concat(cachedData.articles);
+        return cachedData.articles;
       } else {
         const response = await axios.get('https://newsapi.org/v2/top-headlines', {
           params: {
             category,
             language: language[0] || 'en',
             apiKey: NEWS_API_KEY
-          }
+          },
+          timeout: 10000 // 10 second timeout
         });
 
         const articles = response.data.articles;
@@ -44,14 +50,20 @@ router.get('/', authenticationToken, async (req, res) => {
           articles
         };
 
-        allArticles = allArticles.concat(articles);
+        return articles;
       }
-    }
+    });
+
+    const articleArrays = await Promise.all(articlePromises);
+    const allArticles = articleArrays.flat();
 
     return res.json({ news: allArticles });
 
   } catch (error) {
     console.error('Error fetching news:', error.message);
+    if (error.code === 'ECONNABORTED') {
+      return res.status(504).json({ error: 'News API request timeout' });
+    }
     return res.status(500).json({ error: 'Failed to fetch news articles' });
   }
 });
@@ -83,9 +95,13 @@ router.get('/', authenticationToken, async (req, res) => {
 router.get('/search/:keyword', authenticationToken, async (req, res) => {
   const { keyword } = req.params;
   const user = users.find(u => u.email === req.user.email);
-  
+
   if (!user || !user.preferences) {
     return res.status(400).json({ error: 'Preferences not set' });
+  }
+
+  if (!keyword || keyword.trim().length === 0) {
+    return res.status(400).json({ error: 'Search keyword is required' });
   }
 
   const language = user.preferences.language?.[0] || 'en';
@@ -96,7 +112,8 @@ router.get('/search/:keyword', authenticationToken, async (req, res) => {
         q: keyword,
         language,
         apiKey: NEWS_API_KEY,
-      }
+      },
+      timeout: 10000 // 10 second timeout
     });
 
     const articles = response.data.articles.slice(0, 20); // Limit to 20 articles
@@ -107,6 +124,12 @@ router.get('/search/:keyword', authenticationToken, async (req, res) => {
 
   } catch (error) {
     console.error('Error fetching search results:', error.message);
+    if (error.code === 'ECONNABORTED') {
+      return res.status(504).json({ error: 'Search request timeout' });
+    }
+    if (error.response && error.response.status === 429) {
+      return res.status(429).json({ error: 'News API rate limit exceeded. Please try again later.' });
+    }
     res.status(500).json({ error: 'Failed to search articles' });
   }
 });
